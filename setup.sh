@@ -2,6 +2,7 @@
 
 set -e
 LOG_FILE="$HOME/pixbox_setup.log"
+BACKEND_DIR="$HOME/pixbox"
 
 echo "📦 PixBox WSL2 Setup Started at $(date)" | tee $LOG_FILE
 
