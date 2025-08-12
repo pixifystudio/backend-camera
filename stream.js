@@ -136,6 +136,7 @@ app.post('/snapshot', async(req, res) => {
   }
 
   const gphotoSnap = spawn('gphoto2', [
+    '--wait-event', '200ms',
     '--capture-image-and-download',
     '--filename', fullPath,
     '--force-overwrite'
@@ -175,7 +176,7 @@ app.post('/gif', (req, res) => {
   const outputFile = path.join(dir, `gif.mp4`);
 
   const ffmpegArgs = [
-    '-framerate', '1',
+    '-framerate', '2',
     '-pattern_type', 'glob',
     '-i', pattern,
     // '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
