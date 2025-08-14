@@ -211,74 +211,6 @@ app.get('/stop', (req, res) => {
   res.send('🛑 Stream dan proses dihentikan.');
 });
 
-app.post('/build-video', async (req, res) => {
-  const { dir, pattern, duration, output, overlay, coords } = req.body;
-
-  if (!dir || !pattern || !duration || !output) {
-    return res.status(400).json({ status: 'error', message: 'Param dir, pattern, duration, output wajib diisi' });
-  }
-
-  if (!fs.existsSync(dir)) return res.status(404).json({ status: 'error', message: `Folder tidak ditemukan: ${dir}` });
-
-  const files = fs.readdirSync(dir).filter(file => file.match(new RegExp(pattern.replace('*', '.*'))));
-  files.sort(); // urutkan alfanumerik
-
-  if (coords && coords.length !== files.length) {
-    return res.status(400).json({ status: 'error', message: 'Jumlah coords tidak sama dengan jumlah file gambar' });
-  }
-
-  const framerate = (1 / parseFloat(duration)).toFixed(4);
-  const filterInputs = files.map((_, i) => `-loop 1 -t ${duration} -i ${files[i]}`).join(' ');
-  const inputArgs = files.flatMap(filename => ['-loop', '1', '-t', duration.toString(), '-i', filename]);
-
-  const inputOverlay = overlay ? ['-i', overlay] : [];
-  const totalInputs = files.length + (overlay ? 1 : 0);
-
-  const filterSteps = [];
-  const overlaySteps = [];
-
-  files.forEach((_, i) => {
-    const { width, height } = coords?.[i] || { width: 256, height: 256 };
-    filterSteps.push(`[${i}:v] scale=${width}:${height} [v${i}]`);
-  });
-
-  filterSteps.push(`nullsrc=size=1144x1712 [base]`);
-  overlaySteps.push(`[base][v0] overlay=${coords[0].x}:${coords[0].y} [tmp1]`);
-
-  for (let i = 1; i < files.length; i++) {
-    const prev = i === 1 ? 'tmp1' : `tmp${i}`;
-    overlaySteps.push(`[${prev}][v${i}] overlay=${coords[i].x}:${coords[i].y} [tmp${i + 1}]`);
-  }
-
-  const lastStep = `tmp${files.length}`;
-  const finalOverlay = overlay ? `[${lastStep}][${files.length}:v] overlay=0:0` : `${lastStep}`;
-
-  const filterComplex = [...filterSteps, ...overlaySteps, finalOverlay].join('; ');
-
-  const ffmpegArgs = [
-    ...inputArgs,
-    ...inputOverlay,
-    '-filter_complex', filterComplex,
-    '-frames:v', '1', // gambar diam, tapi bisa diganti -shortest untuk video durasi `duration`
-    '-c:v', 'libx264',
-    '-pix_fmt', 'yuv420p',
-    output
-  ];
-
-  const ffmpeg = spawn('ffmpeg', ffmpegArgs, { cwd: dir });
-
-  let stderr = '';
-  ffmpeg.stderr.on('data', data => stderr += data.toString());
-
-  ffmpeg.on('close', code => {
-    if (code === 0) {
-      res.json({ status: 'ok', output });
-    } else {
-      res.status(500).json({ status: 'error', message: 'FFmpeg error', detail: stderr });
-    }
-  });
-});
-
 app.post('/merge-videos', (req, res) => {
   const { videos, overlay, canvasWidth, canvasHeight, output } = req.body;
 
@@ -330,53 +262,13 @@ app.post('/merge-videos', (req, res) => {
   });
 });
 
-app.get('/media', (req, res) => {
-  const filePath = req.query.path;
-  if (!filePath) {
-    return res.status(400).send('Missing "path" query parameter');
-  }
-
-  const resolvedPath = path.resolve(filePath);
-  if (!fs.existsSync(resolvedPath)) {
-    return res.status(404).send('Video file not found');
-  }
-
-  const stat = fs.statSync(resolvedPath);
-  const fileSize = stat.size;
-  const range = req.headers.range;
-
-  if (range) {
-    const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-    const chunkSize = end - start + 1;
-    const file = fs.createReadStream(resolvedPath, { start, end });
-
-    res.writeHead(206, {
-      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-      'Accept-Ranges': 'bytes',
-      'Content-Length': chunkSize,
-      'Content-Type': 'video/mp4',
-    });
-
-    file.pipe(res);
-  } else {
-    res.writeHead(200, {
-      'Content-Length': fileSize,
-      'Content-Type': 'video/mp4',
-    });
-
-    fs.createReadStream(resolvedPath).pipe(res);
-  }
-});
-
 function stopProcesses() {
   if (gphotoProc) {
     gphotoProc.kill('SIGINT');
     gphotoProc = null;
   }
   if (ffmpegPreview) {
-    ffmpegPreview.kill('SIGINT');
+    ffmpegPreview.kill('SIGKILL');
     ffmpegPreview = null;
   }
 
