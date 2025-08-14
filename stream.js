@@ -36,18 +36,17 @@ app.get('/stream', (req, res) => {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
     'Pragma': 'no-cache',
-          'Access-Control-Allow-Origin': '*'
+    'Access-Control-Allow-Origin': '*'
   });
-        //res.set('Access-Control-Allow-Origin', '*');
 
   ffmpegPreview = spawn('ffmpeg', [
     '-f', 'mjpeg',
     '-i', 'pipe:0',
-    '-vf', 'scale=640:480',
+    '-vf', 'scale=iw*0.5:ih*0.5',
     '-r', '30',
     '-probesize', '32',
     '-analyzeduration', '0',
-    '-q:v', '5',
+    '-q:v', '3',
     '-f', 'image2pipe',
     '-vcodec', 'mjpeg',
     'pipe:1',
@@ -136,7 +135,7 @@ app.post('/snapshot', async(req, res) => {
   }
 
   const gphotoSnap = spawn('gphoto2', [
-    '--wait-event', '200ms',
+    '--wait-event', '100ms',
     '--capture-image-and-download',
     '--filename', fullPath,
     '--force-overwrite'
