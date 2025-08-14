@@ -230,6 +230,46 @@ app.post('/gif', (req, res) => {
   });
 });
 
+app.get('/media', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) {
+    return res.status(400).send('Missing "path" query parameter');
+  }
+
+  const resolvedPath = path.resolve(filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    return res.status(404).send('Video file not found');
+  }
+
+  const stat = fs.statSync(resolvedPath);
+  const fileSize = stat.size;
+  const range = req.headers.range;
+
+  if (range) {
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunkSize = end - start + 1;
+    const file = fs.createReadStream(resolvedPath, { start, end });
+
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Content-Type': 'video/mp4',
+    });
+
+    file.pipe(res);
+  } else {
+    res.writeHead(200, {
+      'Content-Length': fileSize,
+      'Content-Type': 'video/mp4',
+    });
+
+    fs.createReadStream(resolvedPath).pipe(res);
+  }
+});
+
 app.get('/stop', (req, res) => {
   stopProcesses();
   res.send('🛑 Stream dan proses dihentikan.');
