@@ -15,6 +15,25 @@ let ffmpegPreview = null;
 let streamBuffer = new PassThrough(); // untuk preview
 let recordingBuffer = new PassThrough(); // untuk rekaman
 
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function stopProcesses() {
+  if (gphotoProc) {
+    gphotoProc.kill('SIGINT');
+    gphotoProc = null;
+  }
+  if (ffmpegPreview) {
+    ffmpegPreview.kill('SIGKILL');
+    ffmpegPreview = null;
+  }
+
+  // Reset buffer (flush)
+  streamBuffer = new PassThrough();
+  recordingBuffer = new PassThrough();
+}
+
 app.get('/stream', (req, res) => {
   if (gphotoProc || ffmpegPreview) {
     res.status(409).send('Stream already running');
@@ -101,12 +120,17 @@ app.get('/record', (req, res) => {
 });
 
 app.post('/snapshot', async(req, res) => {
+  stopProcesses();
   if (gphotoProc) {
     return res.status(409).json({
       status: 'error',
       message: 'Tidak bisa ambil foto saat streaming aktif.'
     });
   }
+
+  const waitStop = 500;
+  await delay(waitStop);
+  console.log(`Snapshot: After delay ${waitStop}ms`)
 
   const outputDir = req.body?.dir || '.';
   const config = req.body?.config || {};
@@ -261,21 +285,6 @@ app.post('/merge-videos', (req, res) => {
     }
   });
 });
-
-function stopProcesses() {
-  if (gphotoProc) {
-    gphotoProc.kill('SIGINT');
-    gphotoProc = null;
-  }
-  if (ffmpegPreview) {
-    ffmpegPreview.kill('SIGKILL');
-    ffmpegPreview = null;
-  }
-
-  // Reset buffer (flush)
-  streamBuffer = new PassThrough();
-  recordingBuffer = new PassThrough();
-}
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎥 Live Preview: http://localhost:${PORT}/stream`);
