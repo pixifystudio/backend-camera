@@ -128,7 +128,7 @@ app.post('/snapshot', async(req, res) => {
     });
   }
 
-  const waitStop = 500;
+  const waitStop = 100;
   await delay(waitStop);
   console.log(`Snapshot: After delay ${waitStop}ms`)
 
