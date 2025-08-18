@@ -16,7 +16,7 @@ let streamBuffer = new PassThrough(); // untuk preview
 let recordingBuffer = new PassThrough(); // untuk rekaman
 
 function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function stopProcesses() {
@@ -106,6 +106,7 @@ app.get('/record', (req, res) => {
     '-crf', '10',
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
+    '-preset', 'faster',
     '-y',
     fullPath
   ]);
@@ -119,7 +120,7 @@ app.get('/record', (req, res) => {
   });
 });
 
-app.post('/snapshot', async(req, res) => {
+app.post('/snapshot', async (req, res) => {
   stopProcesses();
   if (gphotoProc) {
     return res.status(409).json({
@@ -196,8 +197,10 @@ app.post('/gif', (req, res) => {
     return res.status(404).json({ status: 'error', message: 'Folder tidak ditemukan.' });
   }
 
-  const outputFile = path.join(dir, `gif.mp4`);
+  const outputFile = path.join(dir, `raw-gif.mp4`);
+  const outputFinalFile = path.join(dir, `gif.mp4`);
 
+  //Start Combine Images
   const ffmpegArgs = [
     '-framerate', '2',
     '-pattern_type', 'glob',
@@ -205,29 +208,59 @@ app.post('/gif', (req, res) => {
     // '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
     '-c:v', 'libx264',
     '-pix_fmt', 'yuv420p',
+    '-movflags', '+faststart',
+    '-preset', 'veryfast',
     outputFile
+  ];
+
+  const loopVideo = [
+    '-stream_loop', '2',
+    '-i', outputFile,
+    '-c', 'copy',
+    outputFinalFile
   ];
 
   const ffmpeg = spawn('ffmpeg', ffmpegArgs, { cwd: dir });
 
   let stderr = '';
   ffmpeg.stderr.on('data', data => {
-    stderr += data.toString();
+    stderr += 'Data raw gif: ' + data.toString() + ' \n';
   });
 
+  var ffmpegLoop;
   ffmpeg.on('close', code => {
-    if (code === 0) {
-      res.json({
-        status: 'ok',
-        output: outputFile
-      });
-    } else {
+    if (code !== 0) {
       res.status(500).json({
         status: 'error',
-        message: stderr || 'Gagal membuat video.'
+        message: stderr || 'Gagal membuat gif.'
       });
     }
-  });
+
+    //Start Loop Video
+    ffmpegLoop = spawn('ffmpeg', loopVideo, { cwd: dir });
+
+    ffmpegLoop.stderr.on('data', data => {
+      stderr += 'Data loop gif: ' + data.toString() + ' \n';
+    });
+
+    ffmpegLoop.on('close', code => {
+      fs.unlinkSync(outputFile);
+
+      if (code === 0) {
+        res.json({
+          status: 'ok',
+          output: outputFinalFile
+        });
+      } else {
+        console.error('Error GIF: ' + stderr)
+
+        res.status(500).json({
+          status: 'error',
+          message: stderr || 'Gagal membuat gif.'
+        });
+      }
+    });
+  })
 });
 
 app.get('/media', (req, res) => {
@@ -306,7 +339,7 @@ app.post('/merge-videos', (req, res) => {
     ...inputArgs,
     '-filter_complex', filterComplex,
     //'-shortest',
-          '-t', '5',
+    '-t', '5',
     '-c:v', 'libx264',
     '-pix_fmt', 'yuv420p',
     output
