@@ -129,7 +129,7 @@ app.post('/snapshot', async (req, res) => {
     });
   }
 
-  const waitStop = 100;
+  const waitStop = 350;
   await delay(waitStop);
   console.log(`Snapshot: After delay ${waitStop}ms`)
 
@@ -160,7 +160,7 @@ app.post('/snapshot', async (req, res) => {
   }
 
   const gphotoSnap = spawn('gphoto2', [
-    '--wait-event', '100ms',
+    // '--wait-event', '100ms',
     '--capture-image-and-download',
     '--filename', fullPath,
     '--force-overwrite'
@@ -218,7 +218,8 @@ app.post('/gif', (req, res) => {
   const loopVideo = [
     '-stream_loop', '2',
     '-i', outputFile,
-    '-c', 'copy',
+    '-c:v', 'libx264',
+    '-crf', '28',
     outputFinalFile
   ];
 
