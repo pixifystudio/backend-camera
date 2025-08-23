@@ -65,7 +65,7 @@ app.get('/stream', (req, res) => {
     '-r', '30',
     '-probesize', '32',
     '-analyzeduration', '0',
-    '-q:v', '3',
+    '-q:v', '4',
     '-f', 'image2pipe',
     '-vcodec', 'mjpeg',
     'pipe:1',
@@ -219,6 +219,11 @@ app.post('/gif', (req, res) => {
     '-stream_loop', '2',
     '-i', outputFile,
     '-c:v', 'libx264',
+    '-profile:v', 'baseline',
+    '-level', '3.0',
+    '-pix_fmt', 'yuv420p',
+    '-movflags', '+faststart',
+    '-preset', 'veryfast',    
     '-crf', '28',
     outputFinalFile
   ];
