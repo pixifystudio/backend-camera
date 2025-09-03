@@ -212,6 +212,7 @@ app.post('/gif', (req, res) => {
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
     '-preset', 'veryfast',
+    '-crf', '23',
     outputFile
   ];
 
