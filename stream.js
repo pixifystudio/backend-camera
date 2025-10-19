@@ -205,14 +205,14 @@ app.post('/gif', (req, res) => {
     '-framerate', '2',
     '-pattern_type', 'glob',
     '-i', pattern,
-    // '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+    '-vf', 'scale=720:480',
     '-c:v', 'libx264',
     '-profile:v', 'baseline',
     '-level', '3.0',
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
     '-preset', 'veryfast',
-    '-crf', '23',
+    '-crf', '10',
     outputFile
   ];
 
@@ -226,7 +226,7 @@ app.post('/gif', (req, res) => {
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
     '-preset', 'veryfast',    
-    '-crf', '35',
+    '-crf', '10',
     outputFinalFile
   ];
 
